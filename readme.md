@@ -28,28 +28,7 @@ The preprocessing pipeline includes the following steps:
 
 ### Mask Generation
 
-For each document image, a mask is generated using OCR to identify text regions:
-
-```python
-def generate_mask(image_path):
-    image = cv2.imread(image_path)
-    mask = np.zeros((height, width), dtype=np.uint8)
-    
-    # OCR to find text regions
-    data = pytesseract.image_to_data(thresh, config='--psm 6', output_type=pytesseract.Output.DICT)
-    
-    # Group words into sentences based on position
-    sentences = []
-    # ... grouping logic ...
-    
-    # Draw text regions on mask
-    for sentence in sentences:
-        # Find bounding box
-        # ... bounding box calculation ...
-        cv2.rectangle(mask, (min_x, min_y), (max_x, max_y), 255, -1)
-    
-    return mask
-```
+For each document image, a mask is generated using OCR to identify text regions.
 
 The process:
 1. Uses Tesseract OCR to detect all text elements
@@ -147,11 +126,21 @@ The loss combines:
 
 The model is evaluated using standard segmentation metrics:
 
-1. **IoU (Intersection over Union)**: Measures overlap between predicted and true masks
-2. **Dice Coefficient (F1 Score)**: Harmonic mean of precision and recall
-3. **Precision**: Ratio of true positives to all positive predictions
-4. **Recall**: Ratio of true positives to all actual positives
-5. **Accuracy**: Overall pixel-wise accuracy
+### 1. IoU (Intersection over Union)
+IoU measures the overlap between the predicted segmentation mask and the ground truth, calculated as the area of intersection divided by the area of union. In historical book layout detection, where precise separation of regions like body text, margins, and decorations is essential, IoU is particularly valuable. It penalizes both over-segmentation (predicting more than necessary) and under-segmentation (missing parts), making it a robust indicator of how well the model aligns with actual layout zones. A high IoU means the model is accurately capturing the spatial extent of layout components like text blocks.
+
+### 2. Dice Coefficient (F1 Score)
+The Dice coefficient, or F1 score, is the harmonic mean of precision and recall, emphasizing balance between false positives and false negatives. This is crucial for layout detection in degraded historical documents where annotations may be imprecise or ambiguous. For example, if a text block is faded or partially obstructed, the Dice score ensures that the model isn't unfairly penalized unless it's both missing true regions and hallucinating non-existent ones. It’s particularly helpful in imbalanced datasets, such as when text regions occupy much less space than the background or margins.
+
+### 3. Precision
+Precision quantifies how many of the model's positive predictions (e.g., "this is a text region") were actually correct. In the context of historical books, high precision means the model avoids falsely labeling decorative elements, page noise, or margins as text. This is especially important when preserving the authenticity of the document for downstream tasks like OCR, where false positives can lead to misrecognized characters or misaligned text extractions.
+
+### 4. Recall
+Recall reflects how many actual positive cases were correctly identified by the model. For historical layout detection, this translates to how much of the real text content was successfully segmented. High recall ensures that the model doesn’t miss faded or irregular text areas that are often found in Renaissance-era or damaged manuscripts. Missing these can lead to incomplete transcriptions or omitted sections in text digitization pipelines.
+
+### 5. Accuracy
+Accuracy in segmentation is the ratio of correctly classified pixels to the total number of pixels. While it gives a general sense of performance, it can be misleading in imbalanced datasets where background pixels dominate. For historical book layouts, where most pixels might belong to non-text areas, a high accuracy might still mean the model is poor at detecting text regions. Therefore, it’s useful as a supporting metric, but should be interpreted alongside IoU, Dice, precision, and recall for a complete picture.
+
 
 | Metric         | Train        | Validation    | Test       |
 |----------------|--------------|----------------|------------|
